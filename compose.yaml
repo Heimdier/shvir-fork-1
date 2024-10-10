@@ -1,0 +1,61 @@
+
+# The parser will ignore extension fields prefixed with x-
+x-deploy: &deploy-dev
+  deploy:
+    resources:
+      limits:
+        cpus: "1"
+        memory: 512M
+      reservations:
+        memory: 256M
+x-env_file: &env_file
+  env_file:
+    - .env
+x-restart: &restart
+  restart: always #no, on-failure , always(default), unless-stopped 
+include:
+  - proxy.yaml
+services:
+  db:
+    image: mysql:8
+    #"mysql_native_password" only for backend, usually don't need!
+    # command: "--default-authentication-plugin=mysql_native_password" 
+    # volumes:
+    #  - db_data:/var/lib/mysql
+    ports: ["3306:3306"]
+    networks: 
+      backend:
+        ipv4_address: 172.20.0.10
+    <<: [*deploy-dev, *env_file, *restart]
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=backend
+      - MYSQL_USER=backend
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_ROOT_HOST="%" # it's very important!!!
+
+  web:
+    build:
+      context: .
+      dockerfile: dockerfile.python
+    depends_on: ["db"]
+#    ports: ["5000:5000"]
+    networks: 
+      backend:
+        ipv4_address: 172.20.0.5
+    <<: [*deploy-dev, *env_file, *restart]
+    environment:
+      - DB_HOST=172.20.0.10
+      - DB_USER=backend
+      - DB_PASSWORD=${MYSQL_PASSWORD}
+      - DB_NAME=backend
+
+
+
+
+#volumes:
+#  db_data: {}
+#  wp_data: {}
+
+
+
